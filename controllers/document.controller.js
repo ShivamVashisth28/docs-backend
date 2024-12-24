@@ -3,6 +3,7 @@ import User from "../models/user.model.js";
 import generateUniqueId from 'generate-unique-id';
 import { verifyToken } from "../utils/tokenGenerator.js";
 import { genereateInviteCode, verifyInviteCode } from "../utils/inviteCode.js";
+import { deleteDocumentFromUserList } from "../utils/deleteDocumentFromUser.js";
 
 
 export const createDocument = async (req, res) => {
@@ -224,78 +225,73 @@ export const renameDocument = async (req, res) => {
 
 export const deleteDocument = async (req, res) => {
     try {
-        
-        const token = req.cookies.authToken
-        if(!token){
+        const token = req.cookies.authToken;
+        if (!token) {
             return res.json({
-                message:"No token found",
-                status:"error"
-            })
+                message: "No token found",
+                status: "error",
+            });
         }
 
-        const username = await verifyToken(token)
+        const username = await verifyToken(token);
 
-        if(!username){
+        if (!username) {
             return res.json({
-                message:"Invalid token",
-                status:"error"
-            })
+                message: "Invalid token",
+                status: "error",
+            });
         }
 
-        const user = await User.findOne({username})
+        const documentId = req.query.documentId;
 
-        if(!user){
+        if (!documentId) {
             return res.json({
-                message:"No user found",
-                status:"error"
-            })
-        }
-        
-        
-        const documents = user.documents
-        
-        const documentId = req.query.documentId
-
-
-        if(!documentId){
-            return res.json({
-                message:"Doc id not found",
-                status:"error"
-            })
+                message: "Doc id not found",
+                status: "error",
+            });
         }
 
+        const document = await Document.findOne({ documentId });
 
-        
-        const document = await Document.findOneAndDelete({documentId}) 
-
-        if(!document){
+        if (!document) {
             return res.json({
-                message:"No document with this id found",
-                status:"error"
-            })
+                message: "No document with this ID found",
+                status: "error",
+            });
         }
-        
 
-        const updatedDocuments = documents.filter((doc) => (
-            doc['documentId'] !== documentId
-        ))
+        const editors = document.editors || [];
+        const viewers = document.viewers || [];
 
-        user.documents = updatedDocuments
-        await user.save()
+        // Delete the document from all users' lists (editors + viewers)
+        const usersToUpdate = [...editors, ...viewers];
+        for (const user of usersToUpdate) {
+            try {
+                await deleteDocumentFromUserList(user, documentId);
+            } catch (error) {
+                console.error(`Error removing document for user: ${user}`, error);
+            }
+        }
+
+        // Finally, delete the document from the database
+        await Document.deleteOne({ documentId });
+
+        // Remove the document from the requesting user's list (if not already handled)
+        await deleteDocumentFromUserList(username, documentId);
 
         return res.json({
-            message:"Deleted the document successfully",
-            status:"success",
-        })
-
+            message: "Deleted the document successfully",
+            status: "success",
+        });
     } catch (error) {
+        console.error("Error in deleting document:", error);
         return res.json({
-            message:"Error in deleting the document",
-            status:"error",
-            error
-        })
+            message: "Error in deleting the document",
+            status: "error",
+            error,
+        });
     }
-}
+};
 
 export const getUserType = async (req, res) => {
     try {
