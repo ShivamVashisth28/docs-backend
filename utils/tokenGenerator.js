@@ -8,7 +8,6 @@ export const generateToken =  (username) => {
 export const verifyToken = (token) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log(decoded )
         return decoded.username; 
     } catch (err) {
         throw new Error('Invalid or expired token'); 

@@ -1,8 +1,8 @@
 import Document from "../models/document.model.js";
+import User from "../models/user.model.js";
 import generateUniqueId from 'generate-unique-id';
 import { verifyToken } from "../utils/tokenGenerator.js";
-import User from "../models/user.model.js";
-
+import { genereateInviteCode, verifyInviteCode } from "../utils/inviteCode.js";
 
 
 export const createDocument = async (req, res) => {
@@ -292,6 +292,308 @@ export const deleteDocument = async (req, res) => {
         return res.json({
             message:"Error in deleting the document",
             status:"error",
+            error
+        })
+    }
+}
+
+export const getUserType = async (req, res) => {
+    try {
+        const token = req.cookies.authToken
+        const documentId = req.query.documentId
+
+        if(!token){
+            return res.json({
+                message:"No token found",
+                status:"error"
+            })
+        }
+
+        const username = await verifyToken(token)
+
+        if(!username){
+            return res.json({
+                message:"No username found",
+                status:"error"
+            })
+        }
+
+        const user = await User.findOne({username})
+
+        if(!user){
+            return res.json({
+                message:"No user found",
+                status:"error"
+            })
+        }
+
+        if(!documentId){
+            return res.json({
+                message:"No doc id found",
+                status:"error"
+            })
+        }
+
+        const document = await Document.findOne({documentId})
+
+        if(!document){
+            return res.json({
+                message:"No document found",
+                status:"error"
+            })
+        }
+
+        // user is the owner 
+        if(document.owner === user.username){
+            return res.json({
+                message:"user is the owner",
+                status:"success",
+                userType:"owner"
+            })
+        }
+
+        // user is editor
+        let isEditor = false
+        for(let editor of document.editors){
+            if(editor === user.username){
+                isEditor = true
+            }
+        }
+
+        if(isEditor){
+            return res.json({
+                message:"user is one of the editor",
+                status:"success",
+                userType:"editor"
+            })
+        }
+
+        // user is just a viewer
+        let canView = false
+        for(let viewer of document.viewers){
+            if(viewer === user.username){
+                canView = true
+            }
+        }
+
+        if(canView){
+            return res.json({
+                message:"user is one of the viewers",
+                status:"success",
+                userType:"viewer"
+            })
+        }
+
+        // user have no access to the document
+        return res.json({
+            message:"user have no access",
+            status:"success",
+            userType:"none"
+        })
+
+    } catch (error) {
+        return res.json({
+            message:"Cant find the type: ERROR",
+            status:"error",
+            error
+        })
+    }
+}
+
+export const generateInviteCode = async (req, res) => {
+    try {
+        const token = req.cookies.authToken
+        const {documentId, accessType} = req.query
+
+        if(!token){
+            return res.json({
+                message:"No token found",
+                status:"error"
+            })
+        }
+
+        if(!documentId){
+            return res.json({
+                message:"No document id ",
+                status:"error"
+            })
+        }
+        
+        if(!accessType){
+            return res.json({
+                message:"No user access given",
+                status:"error"
+            })
+        }
+
+        const username = verifyToken(token)
+
+        if(!username){
+            return res.json({
+                message:"No username found with the token",
+                status:"error"
+            })
+        }
+
+        const user = await User.findOne({username})
+
+        if(!user){
+            return res.json({
+                message:"No user found with the token",
+                status:"error"
+            })
+        }
+
+        const email = user.email
+
+        const inviteCode = await genereateInviteCode(email,accessType.toLowerCase())
+
+        if(!inviteCode){
+            return res.json({
+                message:"Error in generating invite code",
+                status:"error"
+            })
+        }
+
+        return res.json({
+            message:"Generated the invite code",
+            status:"success",
+            inviteCode
+        })
+
+    } catch (error) {
+        return res.json({
+            message:"ERROR: Can't generate invite link",
+            status:"error",
+            error
+        })
+    }
+}
+
+export const validateInviteCode = async (req, res) => {
+    try {
+        const token = req.cookies.authToken
+        const {inviteCode, documentId} = req.query
+        
+
+        if(!token){
+            return res.json({
+                message:"No token found!",
+                status:"Error"
+            })
+        }
+
+        if(!documentId){
+            return res.json({
+                message:"No doc id found !!",
+                status:"Error"
+            })
+        }
+        
+        if(!inviteCode){
+            return res.json({
+                message:"No invite code found !!",
+                status:"Error"
+            })
+        }
+
+        const username = verifyToken(token)
+        
+        if(!username){
+            return res.json({
+                message:"no username found",
+                status:"Error"
+            })
+        }
+
+        const user = await User.findOne({username})
+
+        if(!user){
+            return res.json({
+                message:"no user found",
+                status:"Error"
+            })
+        }
+
+        const { accessType, email} =  verifyInviteCode(inviteCode)
+
+        if(!accessType || !email ){
+            return res.json({
+                message:"Error in decoding the invite code",
+                status:"Error"
+            })
+        }
+
+        if(email === user.email){
+            return res.json({
+                message:"Reciever is the ownner",
+                status:"Error"
+            })
+        }
+
+        const document = await Document.findOne({documentId})
+
+        if(!document){
+            return res.json({
+                message:"Error in getting the document",
+                status:"Error"
+            })
+        }
+
+        // already editor
+        for(let doc of user.documents){
+            if(doc.documentId === documentId && doc.role === 'editor'){
+                return res.json({
+                    message:"Already editor access",
+                    status:"success"
+                })
+            }
+        }
+
+        if(accessType === 'editor'){
+            document.editors.push(username)
+            user.documents.push({
+                documentId,
+                role:'editor'
+            })
+        }
+        
+
+        if(accessType === 'viewer'){
+
+            // already viewer
+            for(let doc of user.documents){
+                if(doc.documentId === documentId){
+                    return res.json({
+                        message:"Already viewer access",
+                        status:"success"
+                    })
+                }
+            }
+
+            document.viewers.push(username)
+            user.documents.push({
+                documentId,
+                role:'viewer'
+            })
+
+        }
+        
+        await user.save()
+        await document.save()
+
+        return res.json({
+            message:"Updated the access",
+            status:"success",
+            accessType,
+            email,
+            documentId
+        })
+
+    } catch (error) {
+        return res.json({
+            message:"Error[try catch] in verifying the invite code",
+            status:"Error",
             error
         })
     }
