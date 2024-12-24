@@ -387,7 +387,7 @@ export const getUserType = async (req, res) => {
         // user have no access to the document
         return res.json({
             message:"user have no access",
-            status:"success",
+            status:"error",
             userType:"none"
         })
 
@@ -472,129 +472,135 @@ export const generateInviteCode = async (req, res) => {
 
 export const validateInviteCode = async (req, res) => {
     try {
-        const token = req.cookies.authToken
-        const {inviteCode, documentId} = req.query
-        
+        const token = req.cookies.authToken;
+        const { inviteCode, documentId } = req.query;
 
-        if(!token){
+        if (!token) {
             return res.json({
-                message:"No token found!",
-                status:"Error"
-            })
+                message: "No token found!",
+                status: "Error",
+            });
         }
 
-        if(!documentId){
+        if (!documentId) {
             return res.json({
-                message:"No doc id found !!",
-                status:"Error"
-            })
-        }
-        
-        if(!inviteCode){
-            return res.json({
-                message:"No invite code found !!",
-                status:"Error"
-            })
+                message: "No doc id found !!",
+                status: "Error",
+            });
         }
 
-        const username = verifyToken(token)
-        
-        if(!username){
+        if (!inviteCode) {
             return res.json({
-                message:"no username found",
-                status:"Error"
-            })
+                message: "No invite code found !!",
+                status: "Error",
+            });
         }
 
-        const user = await User.findOne({username})
+        const username = verifyToken(token);
 
-        if(!user){
+        if (!username) {
             return res.json({
-                message:"no user found",
-                status:"Error"
-            })
+                message: "No username found",
+                status: "Error",
+            });
         }
 
-        const { accessType, email} =  verifyInviteCode(inviteCode)
+        const user = await User.findOne({ username });
 
-        if(!accessType || !email ){
+        if (!user) {
             return res.json({
-                message:"Error in decoding the invite code",
-                status:"Error"
-            })
+                message: "No user found",
+                status: "Error",
+            });
         }
 
-        if(email === user.email){
+        const { accessType, email } = verifyInviteCode(inviteCode);
+
+        if (!accessType || !email) {
             return res.json({
-                message:"Reciever is the ownner",
-                status:"Error"
-            })
+                message: "Error in decoding the invite code",
+                status: "Error",
+            });
         }
 
-        const document = await Document.findOne({documentId})
-
-        if(!document){
+        if (email === user.email) {
             return res.json({
-                message:"Error in getting the document",
-                status:"Error"
-            })
+                message: "You are the owner",
+                status: "success",
+            });
         }
 
-        // already editor
-        for(let doc of user.documents){
-            if(doc.documentId === documentId && doc.role === 'editor'){
-                return res.json({
-                    message:"Already editor access",
-                    status:"success"
-                })
+        const document = await Document.findOne({ documentId });
+
+        if (!document) {
+            return res.json({
+                message: "Error in getting the document",
+                status: "Error",
+            });
+        }
+
+        // Check if the user already has the desired access
+        const userHasAccess = user.documents.some(
+            (doc) => doc.documentId === documentId && doc.role === accessType
+        );
+
+        if (userHasAccess) {
+            return res.json({
+                message: `Already ${accessType} access`,
+                status: "success",
+                documentId,
+            });
+        }
+
+        if (accessType === "editor") {
+            if (!document.editors.includes(username)) {
+                document.editors.push(username);
+            }
+
+            if (
+                !user.documents.some(
+                    (doc) => doc.documentId === documentId && doc.role === "editor"
+                )
+            ) {
+                user.documents.push({
+                    documentId,
+                    role: "editor",
+                });
             }
         }
 
-        if(accessType === 'editor'){
-            document.editors.push(username)
-            user.documents.push({
-                documentId,
-                role:'editor'
-            })
-        }
-        
-
-        if(accessType === 'viewer'){
-
-            // already viewer
-            for(let doc of user.documents){
-                if(doc.documentId === documentId){
-                    return res.json({
-                        message:"Already viewer access",
-                        status:"success"
-                    })
-                }
+        if (accessType === "viewer") {
+            if (!document.viewers.includes(username)) {
+                document.viewers.push(username);
             }
 
-            document.viewers.push(username)
-            user.documents.push({
-                documentId,
-                role:'viewer'
-            })
-
+            if (
+                !user.documents.some(
+                    (doc) => doc.documentId === documentId && doc.role === "viewer"
+                )
+            ) {
+                user.documents.push({
+                    documentId,
+                    role: "viewer",
+                });
+            }
         }
-        
-        await user.save()
-        await document.save()
+
+        await user.save();
+        await document.save();
 
         return res.json({
-            message:"Updated the access",
-            status:"success",
+            message: `You have got the ${accessType} access`,
+            status: "success",
             accessType,
             email,
-            documentId
-        })
-
+            documentId,
+        });
     } catch (error) {
         return res.json({
-            message:"Error[try catch] in verifying the invite code",
-            status:"Error",
-            error
-        })
+            message: "Error[try catch] in verifying the invite code",
+            status: "Error",
+            error,
+        });
     }
-}
+};
