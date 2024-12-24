@@ -188,24 +188,11 @@ export const getDocuments = async (req, res) => {
                 status:"Error"
             })
         }
-        
-        const documentDetails = await Promise.all(
-            documents.map(async (doc) => {
-                const document = await Document.findOne({ _id: doc.documentId });
-                return {
-                    documentId: doc.documentId,
-                    title: document?.title || "Untitled",
-                    role: doc.role,
-                    createdAt: document?.createdAt,
-                    updatedAt: document?.updatedAt,
-                };
-            })
-        );
 
         return res.json({
             message:"Documents found",
             status:"success",
-            documentDetails
+            documents
         })
         
     } catch (error) {

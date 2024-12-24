@@ -7,22 +7,15 @@ const documentSchema = new mongoose.Schema({
         unique: true 
     },
     owner: {
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: "User",
+        type: String,
         required: true
     },
-    editors: [
-        {
-            type: mongoose.Schema.Types.ObjectId, 
-            ref: "User"
-        }
-    ],
-    viewers: [
-        {
-            type: mongoose.Schema.Types.ObjectId, 
-            ref: "User"
-        }
-    ],
+    editors: [String],
+    viewers: [String],
+    title: {
+        type: String,
+        required: true
+    },
     content: {
         type: String,
         default:""
