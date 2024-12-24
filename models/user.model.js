@@ -22,7 +22,8 @@ const userSchema = new mongoose.Schema({
     documents: [
         {
             documentId: {
-                type: String,
+                type: mongoose.Schema.Types.ObjectId, 
+                ref: "Document", 
                 required: true
             },
             role: {

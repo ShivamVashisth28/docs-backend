@@ -150,3 +150,69 @@ export const logoutUser = async (req, res) => {
         status:"success"
     })
 }
+
+export const getDocuments = async (req, res) => {
+    try {
+        const token = req.cookies.authToken
+
+        if(!token){
+            return res.json({
+                message:"No token found",
+                status:"Error",
+            })
+        }
+
+        const username = await verifyToken(token)
+
+        if(!username){
+            return res.json({
+                message:"Invalid Token",
+                status:"Error"
+            })
+        }
+
+        const user = await User.findOne({username})
+
+        if(!user){
+            return res.json({
+                message:"No user found",
+                status:"Error"
+            })
+        }
+
+        const documents = user.documents
+
+        if(!documents){
+            return res.json({
+                message:"No Documents found",
+                status:"Error"
+            })
+        }
+        
+        const documentDetails = await Promise.all(
+            documents.map(async (doc) => {
+                const document = await Document.findOne({ _id: doc.documentId });
+                return {
+                    documentId: doc.documentId,
+                    title: document?.title || "Untitled",
+                    role: doc.role,
+                    createdAt: document?.createdAt,
+                    updatedAt: document?.updatedAt,
+                };
+            })
+        );
+
+        return res.json({
+            message:"Documents found",
+            status:"success",
+            documentDetails
+        })
+        
+    } catch (error) {
+        return res.json({
+            message:"Error in getting the documents",
+            status: "Error",
+            error
+        })
+    }
+}
