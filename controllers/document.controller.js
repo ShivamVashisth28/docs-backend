@@ -542,7 +542,7 @@ export const validateInviteCode = async (req, res) => {
 
         if (userHasAccess) {
             return res.json({
-                message: `Already ${accessType} access`,
+                message: `Already ${accessType[0].toUpperCase() + accessType.slice(1)} access`,
                 status: "success",
                 documentId,
             });
