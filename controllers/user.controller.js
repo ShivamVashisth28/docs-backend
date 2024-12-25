@@ -1,6 +1,7 @@
 import User from "../models/user.model.js"
 import bcrypt from 'bcrypt'
 import { generateToken, verifyToken } from "../utils/tokenGenerator.js"
+import { doesDocTitleHaveKeyword } from "../utils/doesDocTitleHaveKeyword.js"
 
 export const signupUser = async (req, res) => {
     const {username, name, email, password} = req.body
@@ -202,4 +203,78 @@ export const getDocuments = async (req, res) => {
             error
         })
     }
+}
+
+export const getFilteredDocs = async (req, res) => {
+    try {
+        const token = req.cookies.authToken
+        const {keyword} = req.params
+
+        if(!token){
+            return res.json({
+                message:"No token found",
+                status:"Error"
+            })
+        }
+
+        if(!keyword){
+            return res.json({
+                message:"No keyword found",
+                status:"Error"
+            })
+        }
+
+        const username = verifyToken(token)
+
+        if(!username){
+            return res.json({
+                message:"No username found",
+                status:"Error"
+            })
+        }
+
+        const user = await User.findOne({username})
+
+        if(!user){
+            return res.json({
+                message:"No user found",
+                status:"Error"
+            })
+        }
+
+        const documents = user.documents
+
+        if(!documents){
+            return res.json({
+                message:"No docs found",
+                status:"Error"
+            })
+        }
+
+        // Use `Promise.all` to handle asynchronous filtering
+        const filteredDocs = await Promise.all(
+            documents.map(async (doc) => {
+            const hasKeyword = await doesDocTitleHaveKeyword(doc.documentId, keyword);
+            return hasKeyword ? doc : null;
+            })
+        );
+  
+        // Remove null entries from the result
+        const docs = filteredDocs.filter((doc) => doc !== null);
+    
+
+        return res.json({
+            message:"filtered docs found",
+            status:"Success",
+            docs
+        })
+
+
+    } catch (error) {
+        return res.json({
+            message:"Error in getting the filtered docs",
+            status:"error",
+            error
+        })
+    }  
 }

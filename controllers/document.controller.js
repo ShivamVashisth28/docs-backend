@@ -536,6 +536,7 @@ export const validateInviteCode = async (req, res) => {
         }
 
         // Check if the user already has the desired access
+
         const userHasAccess = user.documents.some(
             (doc) => doc.documentId === documentId && doc.role === accessType
         );
