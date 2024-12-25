@@ -6,7 +6,20 @@ import userRouter from './routes/user.router.js'
 import documentRouter from './routes/document.router.js'
 import cookieParser from 'cookie-parser'
 
+import { createServer, maxHeaderSize} from 'node:http'
+import { Server } from 'socket.io'
+
+import Document from './models/document.model.js'
+
 const app = express()
+
+const server = createServer(app)
+const io = new Server(server, {
+    cors:{
+        origin:"http://localhost:5173",
+        methods: ['GET','POST']
+    }
+})
 
 dotenv.config({path:'./.env'})
 app.use(cors({
@@ -30,6 +43,29 @@ app.use('/document',documentRouter)
 
 const port = process.env.PORT || 3000
 
-app.listen(port, ()=> {
-    console.log(`App started listening at port ${port}`)
+
+// socket io part
+
+io.on("connection", socket => {
+    socket.on("get-document", async documentId => {
+      const doc = await Document.findOne({documentId})
+      
+      if(!doc){
+        socket.emit("load-document", "")
+      }else{
+        
+        socket.emit("load-document", doc.content)
+      }
+      socket.join(documentId)
+  
+      socket.on("send-changes", delta => {
+        socket.broadcast.to(documentId).emit("receive-changes", delta)
+      })
+    })
+  })
+
+
+
+server.listen(port, ()=> {
+    console.log(`Server started listening at port ${port}`)
 })
