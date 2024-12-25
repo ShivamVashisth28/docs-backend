@@ -549,6 +549,14 @@ export const validateInviteCode = async (req, res) => {
         }
 
         if (accessType === "editor") {
+            if(document.viewers.includes(username)){
+                document.viewers = document.viewers.filter((viewer)=> viewer !== username)
+                await document.save()
+
+                user.documents = user.documents.filter((doc)=>doc.documentId !== documentId)
+                await user.save()
+            }
+
             if (!document.editors.includes(username)) {
                 document.editors.push(username);
             }
@@ -566,6 +574,13 @@ export const validateInviteCode = async (req, res) => {
         }
 
         if (accessType === "viewer") {
+
+            if(document.editors.includes(username)){
+                return res.json({
+                    message:"Already Editor Access",
+                    status:"success",
+                })
+            }
             if (!document.viewers.includes(username)) {
                 document.viewers.push(username);
             }
