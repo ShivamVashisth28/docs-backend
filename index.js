@@ -23,9 +23,13 @@ const io = new Server(server, {
 
 dotenv.config({path:'./.env'})
 app.use(cors({
-    credentials:true,
-    origin:process.env.FRONTEND_URL
-}))
+  credentials: true,
+  origin: process.env.FRONTEND_URL, // Frontend URL
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+}));
+app.options("*", cors());
+
 app.use(express.json())
 app.use(cookieParser())
 app.use(express.urlencoded({extended:true}))
