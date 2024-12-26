@@ -32,7 +32,7 @@ export const signupUser = async (req, res) => {
 
         res.cookie("authToken", token, {
             httpOnly: true,
-            secure: false,
+            secure: true,
             sameSite: 'strict',
             maxAge: 86400000 // 1 day (in miliseconds)
         })
@@ -75,7 +75,7 @@ export const loginUser = async (req, res) => {
     
         res.cookie('authToken', token, {
                 httpOnly: true,
-                secure: false,
+                secure: true,
                 sameSite: 'strict',
                 maxAge: 86400000 // 1 day (in miliseconds)
         })
@@ -142,7 +142,7 @@ export const getDetails = async (req, res) => {
 export const logoutUser = async (req, res) => {
     res.clearCookie('authToken', {
         httpOnly: true, 
-        secure: false,   
+        secure: true,   
         sameSite: 'strict', 
       });
 
