@@ -46,8 +46,13 @@ const port = process.env.PORT || 3000
 
 // socket io part
 
+let users = []
+
 io.on("connection", socket => {
-    socket.on("get-document", async documentId => {
+
+    socket.on("get-document", async (documentId, userName) => {
+
+      
       const doc = await Document.findOne({documentId})
       
       if(!doc){
@@ -57,10 +62,31 @@ io.on("connection", socket => {
         socket.emit("load-document", doc.content)
       }
       socket.join(documentId)
-  
+      
+      users.push({
+        socketId: socket.id,
+        documentId,
+        userName
+      })
+    
+      io.to(documentId).emit("get-users", users)
+   
+
+
       socket.on("send-changes", delta => {
         socket.broadcast.to(documentId).emit("receive-changes", delta)
       })
+    })
+
+    socket.on("disconnect", () => {
+
+      const userEntry = users.find(user => user.socketId === socket.id);
+      if (userEntry) {
+        const docId = userEntry['documentId'];
+        users = users.filter(user => user.socketId !== socket.id); // Fix filter logic
+        io.to(docId).emit('get-users', users);
+      }
+
     })
   })
 
