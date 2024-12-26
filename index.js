@@ -66,16 +66,19 @@ io.on("connection", socket => {
       users.push({
         socketId: socket.id,
         documentId,
-        userName
+        userName,
       })
     
       io.to(documentId).emit("get-users", users)
    
+      socket.on("cursor-position", ({ documentId, range, userName }) => {
+        socket.broadcast.to(documentId).emit("cursor-position", { range, userName });
+      });
 
 
       socket.on("send-changes", delta => {
-        socket.broadcast.to(documentId).emit("receive-changes", delta)
-      })
+          socket.broadcast.to(documentId).emit("receive-changes", delta)
+        })
     })
 
     socket.on("disconnect", () => {
@@ -85,6 +88,7 @@ io.on("connection", socket => {
         const docId = userEntry['documentId'];
         users = users.filter(user => user.socketId !== socket.id); // Fix filter logic
         io.to(docId).emit('get-users', users);
+        socket.broadcast.to(docId).emit("user-disconnected", userEntry.userName);
       }
 
     })
