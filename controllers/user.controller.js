@@ -34,7 +34,7 @@ export const signupUser = async (req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: 'none',
-            maxAge: 86400000 // 1 day (in miliseconds)
+            maxAge: 86400000 * 100// 100 day (in miliseconds)
         })
 
         return res.json({
@@ -77,7 +77,7 @@ export const loginUser = async (req, res) => {
                 httpOnly: true,
                 secure: true,
                 sameSite: 'none',
-                maxAge: 86400000 // 1 day (in miliseconds)
+                maxAge: 86400000 * 100 // 100 day (in miliseconds)
         })
     
         return res.json({
